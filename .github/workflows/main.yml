@@ -16,6 +16,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Run tests
+        timeout-minutes: 5
         run: cargo test
 
   release:
@@ -24,9 +25,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Build
-        run: cargo build --release
 
       - name: Attest build with Witness
         uses: testifysec/witness-run-action@v0.3.3
@@ -38,13 +36,26 @@ jobs:
           outfile: attestation.json
           command: cargo build --release
 
-      - name: Upload artifact + attestation
+      - name: Install sbomit
+        run: |
+          go install github.com/SBOMit/sbomit/cmd/sbomit@latest
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: Generate SBOM with sbomit
+        run: |
+          sbomit generate attestation.json \
+            --format spdx23 \
+            --name "trunk-${{ github.ref_name }}" \
+            --output sbom.spdx.json
+
+      - name: Upload artifact + attestation + SBOM
         uses: actions/upload-artifact@v4
         with:
           name: trunk-${{ github.ref_name }}
           path: |
             target/release/trunk
             attestation.json
+            sbom.spdx.json
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -56,3 +67,4 @@ jobs:
           files: |
             target/release/trunk
             attestation.json
+            sbom.spdx.json
