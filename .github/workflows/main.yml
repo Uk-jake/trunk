@@ -16,6 +16,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Run tests
+        timeout-minutes: 5
         run: cargo test
 
   release:
